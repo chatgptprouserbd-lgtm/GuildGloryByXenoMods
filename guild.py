@@ -1,29 +1,16 @@
 import os
 import asyncio
 import firebase_admin
-from firebase_admin import credentials, db
+from firebase_admin import db
 
-# Initialize Firebase Admin if not already initialized
+# Initialize Firebase Admin cleanly using only Realtime Database URL (No fake certificate needed)
 if not firebase_admin._apps:
-    # Render ba local environment-er jonno database URL fix kora holo
-    cred = credentials.Certificate({
-        "type": "service_account",
-        "project_id": "xenomod-f51d7",
-        "private_key_id": "dummy_key_id",
-        "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC3...\n-----END PRIVATE KEY-----\n", # Note: Production-e real service account json use kora behtar, realtime db URL direct connect korar jonno niche databaseURL use kora holo
-        "client_email": "firebase-adminsdk@xenomod-f51d7.iam.gserviceaccount.com",
-        "token_uri": "https://oauth2.googleapis.com/token",
-    })
     try:
-        firebase_admin.initialize_app(cred, {
+        firebase_admin.initialize_app(options={
             'databaseURL': 'https://xenomod-f51d7-default-rtdb.firebaseio.com'
         })
-    except Exception:
-        # Fallback for direct URL connection if credential json is minimal
-        if not firebase_admin._apps:
-            firebase_admin.initialize_app(options={
-                'databaseURL': 'https://xenomod-f51d7-default-rtdb.firebaseio.com'
-            })
+    except Exception as e:
+        print(f"[-] Firebase Init Error: {e}")
 
 class GuildSquadManager:
     def __init__(self):
@@ -52,7 +39,6 @@ class GuildSquadManager:
         squad_uids = self.squads.get(squad_name, [])
         
         if not squad_uids:
-            # Try loading from firebase if not in memory
             try:
                 squad_uids = db.reference(f'squads/{squad_name}').get() or []
             except Exception:
