@@ -1,40 +1,51 @@
 import os
+import json
+import requests
 from aiohttp import web
 from guild import GuildSquadManager
-from firebase_admin import db
 
 app = web.Application()
 manager = GuildSquadManager()
 
+FIREBASE_URL = "https://xenomod-f51d7-default-rtdb.firebaseio.com"
+
 def save_account_to_firebase(uid, access_token, region="BD"):
     try:
-        # 1. Save to accounts list node in Firebase
-        acc_ref = db.reference('accounts')
-        existing_accs = acc_ref.get() or []
-        
-        found = False
-        if isinstance(existing_accs, list):
-            for acc in existing_accs:
-                if isinstance(acc, dict) and str(acc.get("uid")) == str(uid):
-                    found = True
-                    break
-            if not found:
-                existing_accs.append({"uid": uid, "region": region, "created_at": "2026-10-23 12:00:00"})
-                acc_ref.set(existing_accs)
-        elif isinstance(existing_accs, dict):
-            acc_ref.child(str(uid)).set({"uid": uid, "region": region, "created_at": "2026-10-23 12:00:00"})
-
-        # 2. Save to token_cache dictionary node in Firebase (Prevents corruption completely)
-        token_ref = db.reference(f'token_cache/{uid}')
-        token_ref.set({
-            "uid": uid,
+        # 1. Direct REST API request to save/update token in token_cache
+        token_data = {
+            "uid": str(uid),
             "access_token": access_token,
             "region": region
-        })
-        return True
+        }
+        res_token = requests.put(
+            f"{FIREBASE_URL}/token_cache/{uid}.json",
+            json=token_data,
+            timeout=10
+        )
+
+        # 2. Save account in accounts list
+        acc_data = {
+            "uid": str(uid),
+            "region": region,
+            "created_at": "2026-10-23 12:00:00"
+        }
+        res_acc = requests.put(
+            f"{FIREBASE_URL}/accounts/{uid}.json",
+            json=acc_data,
+            timeout=10
+        )
+
+        if res_token.status_code == 200 and res_acc.status_code == 200:
+            print(f"[✔] Successfully saved account {uid} to Firebase REST API", flush=True)
+            return True, "Saved successfully"
+        else:
+            err_msg = f"Firebase Error Code: {res_token.status_code}"
+            print(f"[-] {err_msg}", flush=True)
+            return False, err_msg
+
     except Exception as e:
-        print(f"[-] Firebase Save Error: {e}")
-        return False
+        print(f"[-] Firebase Save Exception: {e}", flush=True)
+        return False, str(e)
 
 async def index(request):
     return web.FileResponse('./templates/index.html')
@@ -47,14 +58,15 @@ async def handle_add_account(request):
         region = data.get("region", "BD").strip().upper()
 
         if not uid or not access_token:
-            return web.json_response({"status": "error", "message": "UID and Access Token required!"}, status=400)
+            return web.json_response({"status": "error", "message": "UID and Access Token are required!"}, status=400)
 
-        success = save_account_to_firebase(uid, access_token, region)
+        success, msg = save_account_to_firebase(uid, access_token, region)
         if success:
             return web.json_response({"status": "success", "message": f"Account {uid} saved to Firebase successfully!"})
         else:
-            return web.json_response({"status": "error", "message": "Failed to save to Firebase database."}, status=500)
+            return web.json_response({"status": "error", "message": f"Failed: {msg}"}, status=500)
     except Exception as e:
+        print(f"[-] Route Error: {e}", flush=True)
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
 async def handle_create_squad(request):
