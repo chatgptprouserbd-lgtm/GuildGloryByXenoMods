@@ -1,0 +1,5 @@
+aiohttp==3.9.1
+requests==2.31.0
+protobuf==4.25.1
+pydantic==2.5.2
+firebase-admin==6.5.0
