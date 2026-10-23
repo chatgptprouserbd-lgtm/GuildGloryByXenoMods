@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dark Master - Auto Squad & Guild CS-Rank Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-6">
+    <div class="max-w-5xl mx-auto space-y-6">
+        
+        <!-- Header -->
+        <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-black text-cyan-400">DARK MASTER ENGINE</h1>
+                <p class="text-xs text-slate-400">BD SERVER SQUAD & AUTO CS-RANK CONTROLLER</p>
+            </div>
+            <button onclick="document.getElementById('accModal').classList.remove('hidden')" class="bg-cyan-600 hover:bg-cyan-500 px-4 py-2 rounded-lg font-bold text-sm">Add Token Account</button>
+        </div>
+
+        <!-- Squad Builder & Guild Controls -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- Create Squad Panel -->
+            <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
+                <h2 class="text-lg font-bold text-amber-400">1. Create New Squad</h2>
+                <input type="text" id="squadName" placeholder="Squad Name (e.g. Alpha Squad)" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm focus:outline-none focus:border-cyan-500">
+                <textarea id="squadUids" rows="3" placeholder="Enter UIDs comma-separated (e.g. 8330341878, 123456789)" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm focus:outline-none focus:border-cyan-500"></textarea>
+                <button onclick="createSquad()" class="w-full bg-amber-600 hover:bg-amber-500 font-bold py-2 rounded-lg text-sm">Save Squad</button>
+            </div>
+
+            <!-- Join Guild & Start CS-Rank -->
+            <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
+                <h2 class="text-lg font-bold text-emerald-400">2. Guild Join & Auto CS-Rank</h2>
+                <input type="text" id="guildId" placeholder="Target Guild ID" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm focus:outline-none focus:border-cyan-500">
+                <input type="text" id="targetSquad" placeholder="Enter Created Squad Name" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm focus:outline-none focus:border-cyan-500">
+                <button onclick="startGuildCS()" class="w-full bg-emerald-600 hover:bg-emerald-500 font-bold py-2 rounded-lg text-sm">Join Guild & Start Auto CS Rank</button>
+            </div>
+
+        </div>
+
+        <!-- Status Terminal -->
+        <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800">
+            <h3 class="text-xs font-bold text-slate-400 mb-2">ENGINE LOGS</h3>
+            <div id="logs" class="bg-slate-950 p-4 rounded-xl font-mono text-xs text-cyan-400 h-32 overflow-y-auto">Engine Ready...</div>
+        </div>
+
+    </div>
+
+    <!-- Add Account Modal -->
+    <div id="accModal" class="fixed inset-0 bg-black/80 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full space-y-4">
+            <h2 class="text-lg font-bold text-cyan-400">Add Account Token</h2>
+            <input type="text" id="addUid" placeholder="UID" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm">
+            <textarea id="addToken" rows="3" placeholder="Access Token" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm"></textarea>
+            <div class="flex justify-end gap-2">
+                <button onclick="document.getElementById('accModal').classList.add('hidden')" class="bg-slate-800 px-4 py-2 rounded-lg text-sm">Close</button>
+                <button onclick="addAccount()" class="bg-cyan-600 px-4 py-2 rounded-lg text-sm font-bold">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function log(msg) { document.getElementById('logs').innerText += "\n" + msg; }
+
+        async function addAccount() {
+            const formData = new URLSearchParams();
+            formData.append('uid', document.getElementById('addUid').value);
+            formData.append('access_token', document.getElementById('addToken').value);
+            formData.append('region', 'BD');
+
+            const res = await fetch('/api/add_account', { method: 'POST', body: formData });
+            const data = await res.json();
+            alert(data.message);
+            document.getElementById('accModal').classList.add('hidden');
+        }
+
+        async function createSquad() {
+            const squad_name = document.getElementById('squadName').value;
+            const uids = document.getElementById('squadUids').value.split(',').map(x => x.trim());
+
+            const res = await fetch('/api/create_squad', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ squad_name, uids })
+            });
+            const data = await res.json();
+            log(data.message);
+        }
+
+        async function startGuildCS() {
+            const guild_id = document.getElementById('guildId').value;
+            const squad_name = document.getElementById('targetSquad').value;
+
+            const res = await fetch('/api/guild_squad_join', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ guild_id, squad_name })
+            });
+            const data = await res.json();
+            log(data.message);
+        }
+    </script>
+</body>
+</html>
